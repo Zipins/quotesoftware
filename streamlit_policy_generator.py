@@ -3,7 +3,7 @@ import boto3
 import tempfile
 import os
 from docx import Document
-from quote_parser import parse_quote_from_text, generate_chinese_description, fill_template_with_data
+from app_core.quote_parser import parse_quote_from_text, generate_chinese_description, fill_template_with_data
 
 # 设置页面标题
 st.set_page_config(page_title="保单生成系统")
