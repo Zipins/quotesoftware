@@ -1,7 +1,8 @@
+print("quote_parser.py loaded")
+
 from app_core.ocr import extract_text_from_pdf
 from app_core.parsing import parse_quote_from_text
 from app_core.word_writer import write_policy_to_word
-
 
 def parse_quote_from_text(text):
     # 将 OCR 提取出的文本，交给 parsing.py 处理
