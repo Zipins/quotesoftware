@@ -1,6 +1,6 @@
+# update trigger
 from app_core.ocr import extract_text_from_pdf
 from app_core.parsing import parse_quote_from_text
-
 from app_core.word_writer import write_policy_to_word
 
 
