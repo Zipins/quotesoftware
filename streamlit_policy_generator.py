@@ -2,46 +2,55 @@ import streamlit as st
 import boto3
 import tempfile
 import os
+from utils.parse_quote import parse_quote_from_text
+from utils.generate_policy import generate_policy_doc
 
-# 读取 AWS 凭证
-aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
-aws_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
-aws_region = os.environ.get("AWS_REGION", "us-east-1")
+st.set_page_config(page_title="保单生成器", layout="wide")
+st.title("📄 中文保单生成系统")
 
-st.title("保险报价解析工具")
+uploaded_file = st.file_uploader("上传保险 Quote PDF 文件", type=["pdf"])
 
-uploaded_file = st.file_uploader("上传保险 Quote（PDF）", type=["pdf"])
+if uploaded_file:
+    st.success(f"✅ 上传成功：{uploaded_file.name}")
 
-if uploaded_file is not None:
-    st.success(f"上传成功！文件名：{uploaded_file.name}")
+    # 创建 AWS Textract 客户端（默认从环境变量读取）
+    textract = boto3.client("textract", region_name="us-east-1")
 
-    # 创建 Textract 客户端
-    textract = boto3.client(
-        "textract",
-        aws_access_key_id=aws_access_key,
-        aws_secret_access_key=aws_secret_key,
-        region_name=aws_region
-    )
-
-    # 保存上传的 PDF 文件到临时路径
+    # 将 PDF 保存为临时文件
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
         tmp_file.write(uploaded_file.read())
-        tmp_path = tmp_file.name
+        tmp_pdf_path = tmp_file.name
 
-    # 使用 Textract 分析文档内容（支持多页 PDF）
-    with open(tmp_path, "rb") as doc:
-        response = textract.analyze_document(
-            Document={"Bytes": doc.read()},
-            FeatureTypes=["FORMS"]
+    # 读取 PDF 文件并调用 Textract
+    with open(tmp_pdf_path, "rb") as doc:
+        try:
+            response = textract.detect_document_text(Document={"Bytes": doc.read()})
+        except Exception as e:
+            st.error(f"❌ Textract 识别失败：{str(e)}")
+            st.stop()
+
+    # 提取文字内容
+    extracted_text = "\n".join([item["DetectedText"] for item in response["Blocks"] if item["BlockType"] == "LINE"])
+
+    # 显示原始文本（可折叠）
+    with st.expander("📃 查看识别文本"):
+        st.text(extracted_text)
+
+    # 结构化提取 quote 信息
+    quote_data = parse_quote_from_text(extracted_text)
+
+    # 生成中文保单 Word 文件
+    output_path = generate_policy_doc(quote_data)
+
+    # 提供下载按钮
+    with open(output_path, "rb") as f:
+        st.download_button(
+            label="📥 下载中文保单",
+            data=f,
+            file_name="保单说明.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
-    # 提取文字块并展示
-    text_blocks = []
-    for block in response["Blocks"]:
-        if block["BlockType"] == "LINE":
-            text_blocks.append(block["Text"])
+    # 清理临时文件
+    os.remove(tmp_pdf_path)
 
-    st.subheader("识别出的文字内容：")
-    st.text("\n".join(text_blocks[:50]))  # 只展示前50行，避免太长
-
-    # 可扩展：将 text_blocks 转为结构化数据、填入模板等
