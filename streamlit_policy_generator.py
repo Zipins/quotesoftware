@@ -35,25 +35,34 @@ if uploaded_file:
         if ext in [".png", ".jpg", ".jpeg"]:
             with open(tmp_file_path, "rb") as doc:
                 response = textract.detect_document_text(Document={"Bytes": doc.read()})
-                st.write(response)  # 👈 临时调试用
+                st.subheader("📋 Textract 原始响应（Debug 用）")
+                st.write(response)
+
+                blocks = response.get("Blocks", [])
+                text_blocks = [b["Text"] for b in blocks if b["BlockType"] == "LINE" and "Text" in b]
+                extracted_text = "\n".join(text_blocks)
+
+                if not extracted_text.strip():
+                    st.error("❌ Textract 识别失败：未检测到任何文本。请确认文件为清晰扫描件。")
+                    os.unlink(tmp_file_path)
+                    st.stop()
+
         elif ext == ".pdf":
             with open(tmp_file_path, "rb") as doc:
                 response = textract.analyze_document(
                     Document={"Bytes": doc.read()},
                     FeatureTypes=["FORMS"],
                 )
+                blocks = response.get("Blocks", [])
+                text_blocks = [b["Text"] for b in blocks if b["BlockType"] == "LINE" and "Text" in b]
+                extracted_text = "\n".join(text_blocks)
+
+                if not extracted_text.strip():
+                    st.error("❌ Textract 识别失败：未检测到任何文本。请确认文件为扫描型 PDF。")
+                    os.unlink(tmp_file_path)
+                    st.stop()
         else:
             st.error("❌ 文件格式不被支持，请上传扫描型 PDF 或清晰图片（PNG/JPG）。")
-            os.unlink(tmp_file_path)
-            st.stop()
-
-        # 提取文字
-        blocks = response.get("Blocks", [])
-        text_blocks = [b["Text"] for b in blocks if b["BlockType"] == "LINE" and "Text" in b]
-        extracted_text = "\n".join(text_blocks)
-
-        if not extracted_text.strip():
-            st.error("❌ Textract 识别失败：未检测到任何文本。请确认文件为清晰扫描件。")
             os.unlink(tmp_file_path)
             st.stop()
 
