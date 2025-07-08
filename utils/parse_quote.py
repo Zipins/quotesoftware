@@ -1,58 +1,40 @@
 import re
 
 def parse_quote_from_text(text: str) -> dict:
-    # 提取责任险（Liability）
-    liability_match = re.search(r'Liability\s*:\s*\$?([\d,]+)[/$](\$?[\d,]+)', text, re.IGNORECASE)
-    liability = {
-        "selected": bool(liability_match),
-        "per_person": liability_match.group(1).replace(",", "") if liability_match else "",
-        "per_accident": liability_match.group(2).replace(",", "") if liability_match else ""
-    }
+    data = {}
 
-    # Medical Payments
-    med_match = re.search(r'Medical\s+Payments\s*.*?\$([\d,]+)', text, re.IGNORECASE)
-    medical_payment = {
-        "selected": bool(med_match),
-        "amount": med_match.group(1).replace(",", "") if med_match else ""
-    }
+    # 责任险（Liability）
+    liability_match = re.search(r'Bodily Injury\s*\$([\d,]+)\s*/\s*\$([\d,]+)', text)
+    if liability_match:
+        data["liability_selected"] = True
+        data["liability_per_person"] = liability_match.group(1)
+        data["liability_per_accident"] = liability_match.group(2)
+    else:
+        data["liability_selected"] = False
 
-    # Personal Injury Protection
-    pip_match = re.search(r'Personal\s+Injury\s+Protection\s*.*?\$([\d,]+)', text, re.IGNORECASE)
-    personal_injury = {
-        "selected": bool(pip_match),
-        "amount": pip_match.group(1).replace(",", "") if pip_match else ""
-    }
+    # 无保险驾驶者（Uninsured Motorist Bodily Injury）
+    umbi_match = re.search(r'Uninsured Motorist.*?\$([\d,]+)\s*/\s*\$([\d,]+)', text)
+    if umbi_match:
+        data["uninsured_motorist_selected"] = True
+        data["umbip_per_person"] = umbi_match.group(1)
+        data["umbip_per_accident"] = umbi_match.group(2)
+    else:
+        data["uninsured_motorist_selected"] = False
 
-    # Uninsured Motorist Bodily Injury
-    umbi_match = re.search(r'UMBI.*?\$([\d,]+)[/$](\$[\d,]+)', text, re.IGNORECASE)
-    # Uninsured Motorist Property Damage
-    umpd_match = re.search(r'UMPD.*?\$([\d,]+).*?(Deductible[:：]?\s*\$([\d,]+))?', text, re.IGNORECASE)
-    uninsured_motorist = {
-        "umb_selected": bool(umbi_match),
-        "umbi_per_person": umbi_match.group(1).replace(",", "") if umbi_match else "",
-        "umbi_per_accident": umbi_match.group(2).replace(",", "") if umbi_match else "",
-        "umpd_selected": bool(umpd_match),
-        "umpd_amount": umpd_match.group(1).replace(",", "") if umpd_match else "",
-        "umpd_deductible": umpd_match.group(3).replace(",", "") if umpd_match and umpd_match.group(3) else "250"
-    }
+    # 医疗费用（Medical Payments）
+    med_match = re.search(r'Medical Payments.*?\$([\d,]+)', text)
+    if med_match:
+        data["medical_payment_selected"] = True
+        data["medical_payment_amount"] = med_match.group(1)
+    else:
+        data["medical_payment_selected"] = False
 
-    # 车辆信息（示例）
-    vehicles = []
-    vin_matches = re.findall(r'(?:VIN[:：]?\s*)([A-HJ-NPR-Z0-9]{17})', text)
-    for vin in vin_matches:
-        vehicles.append({
-            "vin": vin,
-            "year_make_model": "Unknown",
-            "collision": {"selected": False},
-            "comprehensive": {"selected": False},
-            "roadside": {"selected": False},
-            "rental": {"selected": False}
-        })
+    # 人身伤害保护（Personal Injury Protection / PIP）
+    pip_match = re.search(r'Personal Injury Protection.*?\$([\d,]+)', text)
+    if pip_match:
+        data["pip_selected"] = True
+        data["pip_amount"] = pip_match.group(1)
+    else:
+        data["pip_selected"] = False
 
-    return {
-        "liability": liability,
-        "medical_payment": medical_payment,
-        "personal_injury": personal_injury,
-        "uninsured_motorist": uninsured_motorist,
-        "vehicles": vehicles
-    }
+    return data
