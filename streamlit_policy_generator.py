@@ -22,7 +22,7 @@ if uploaded_file is not None:
     st.success(f"上传成功！文件名：{uploaded_file.name}")
 
     # 创建 AWS Textract 客户端
-    textract = boto3.client("textract")
+    textract = boto3.client("textract", region_name=os.getenv("AWS_REGION"))
 
     # 将上传的 PDF 读取为二进制
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
