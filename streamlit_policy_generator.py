@@ -22,16 +22,16 @@ if uploaded_file:
     )
 
     # 保存临时文件
-    suffix = "." + uploaded_file.name.split(".")[-1]
+    suffix = "." + uploaded_file.name.split(".")[-1].lower()
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
         tmp_file.write(uploaded_file.read())
         tmp_path = tmp_file.name
 
     try:
         with open(tmp_path, "rb") as doc:
-            if suffix.lower() in [".png", ".jpg", ".jpeg"]:
+            if suffix in [".png", ".jpg", ".jpeg"]:
                 response = textract.detect_document_text(Document={"Bytes": doc.read()})
-            elif suffix.lower() == ".pdf":
+            elif suffix == ".pdf":
                 response = textract.analyze_document(
                     Document={"Bytes": doc.read()},
                     FeatureTypes=["TABLES", "FORMS"]
@@ -39,18 +39,14 @@ if uploaded_file:
             else:
                 st.error("❌ 文件格式不支持，请上传 PDF 或 PNG/JPG。")
                 st.stop()
-
-        # 🧪 展示原始响应
-        st.write("🧪 Textract 原始响应：", response)
-
     except Exception as e:
         st.error(f"❌ Textract 识别失败：{str(e)}")
         os.remove(tmp_path)
         st.stop()
 
-    # 提取文本，跳过没有 DetectedText 的 block
     if "Blocks" not in response:
-        st.error("❌ 未检测到内容，请上传清晰的扫描文件或截图。")
+        st.error("❌ 没有识别结果，请上传清晰的扫描件或截图。")
+        os.remove(tmp_path)
         st.stop()
 
     lines = []
@@ -59,7 +55,7 @@ if uploaded_file:
             lines.append(block["DetectedText"])
 
     if not lines:
-        st.error("❌ 没有识别出任何文字，请尝试上传更清晰的截图或 PDF。")
+        st.error("❌ 没有识别出任何文字，请尝试更清晰的图片或 PDF。")
         os.remove(tmp_path)
         st.stop()
 
@@ -71,7 +67,7 @@ if uploaded_file:
     # 提取 quote 信息
     quote_data = parse_quote_from_text(extracted_text)
 
-    # 生成保单
+    # 生成中文保单
     output_path = generate_policy_doc(quote_data)
 
     with open(output_path, "rb") as f:
