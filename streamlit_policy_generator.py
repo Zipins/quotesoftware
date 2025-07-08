@@ -14,6 +14,7 @@ st.markdown("上传保险 Quote PDF 或图片（PNG/JPG）")
 aws_access_key_id = st.secrets["AWS_ACCESS_KEY_ID"]
 aws_secret_access_key = st.secrets["AWS_SECRET_ACCESS_KEY"]
 aws_region = st.secrets["AWS_REGION"]
+
 textract = boto3.client(
     "textract",
     aws_access_key_id=aws_access_key_id,
@@ -24,7 +25,8 @@ textract = boto3.client(
 uploaded_file = st.file_uploader("上传文件", type=["pdf", "png", "jpg", "jpeg"])
 
 if uploaded_file:
-    st.success(f"上传成功：{uploaded_file.name}")
+    st.success(f"✅ 上传成功：{uploaded_file.name}")
+
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
         tmp_file.write(uploaded_file.read())
         tmp_file_path = tmp_file.name
@@ -47,10 +49,10 @@ if uploaded_file:
             os.unlink(tmp_file_path)
             st.stop()
 
-        # Debug: 打印 Textract 返回结构
+        # ✅ Debug 输出完整返回内容
         st.write(response)
 
-        # 提取文字（统一处理）
+        # 提取文本块
         blocks = response.get("Blocks", [])
         text_blocks = [b["Text"] for b in blocks if b.get("BlockType") == "LINE" and "Text" in b]
         extracted_text = "\n".join(text_blocks)
@@ -72,5 +74,5 @@ if uploaded_file:
         os.unlink(tmp_file_path)
 
     except Exception as e:
-        st.error(f"❌ Textract 识别失败：{str(e)}")
+        st.error(f"❌ Textract 识别失败：'{str(e)}'")
         os.unlink(tmp_file_path)
