@@ -13,8 +13,13 @@ uploaded_file = st.file_uploader("上传保险 Quote PDF 文件", type=["pdf"])
 if uploaded_file:
     st.success(f"✅ 上传成功：{uploaded_file.name}")
 
-    # 创建 AWS Textract 客户端（默认从环境变量读取）
-    textract = boto3.client("textract", region_name="us-east-1")
+    # 创建 AWS Textract 客户端（从 secrets 中读取凭证）
+    textract = boto3.client(
+        "textract",
+        aws_access_key_id=st.secrets["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=st.secrets["AWS_SECRET_ACCESS_KEY"],
+        region_name=st.secrets["AWS_DEFAULT_REGION"]
+    )
 
     # 将 PDF 保存为临时文件
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
@@ -30,7 +35,11 @@ if uploaded_file:
             st.stop()
 
     # 提取文字内容
-    extracted_text = "\n".join([item["DetectedText"] for item in response["Blocks"] if item["BlockType"] == "LINE"])
+    extracted_text = "\n".join([
+        item["DetectedText"]
+        for item in response["Blocks"]
+        if item["BlockType"] == "LINE"
+    ])
 
     # 显示原始文本（可折叠）
     with st.expander("📃 查看识别文本"):
@@ -53,4 +62,3 @@ if uploaded_file:
 
     # 清理临时文件
     os.remove(tmp_pdf_path)
-
