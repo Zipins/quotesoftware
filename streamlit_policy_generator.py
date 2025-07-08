@@ -35,6 +35,7 @@ if uploaded_file:
         if ext in [".png", ".jpg", ".jpeg"]:
             with open(tmp_file_path, "rb") as doc:
                 response = textract.detect_document_text(Document={"Bytes": doc.read()})
+                st.write(response)  # 👈 临时调试用
         elif ext == ".pdf":
             with open(tmp_file_path, "rb") as doc:
                 response = textract.analyze_document(
