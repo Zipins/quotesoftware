@@ -30,27 +30,29 @@ if uploaded_file:
         tmp_file_path = tmp_file.name
 
     try:
-        # 判断文件类型
         ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+        with open(tmp_file_path, "rb") as doc:
+            file_bytes = doc.read()
+
         if ext in [".png", ".jpg", ".jpeg"]:
-            with open(tmp_file_path, "rb") as doc:
-                response = textract.detect_document_text(Document={"Bytes": doc.read()})
-                st.write(response)  # ✅ debug 打印出来看看
+            response = textract.detect_document_text(Document={"Bytes": file_bytes})
         elif ext == ".pdf":
-            with open(tmp_file_path, "rb") as doc:
-                response = textract.analyze_document(
-                    Document={"Bytes": doc.read()},
-                    FeatureTypes=["FORMS"],
-                )
-                st.write(response)  # ✅ debug 打印 PDF 返回结果
+            response = textract.analyze_document(
+                Document={"Bytes": file_bytes},
+                FeatureTypes=["FORMS"],
+            )
         else:
-            st.error("❌ 文件格式不被支持，请上传扫描型 PDF 或清晰图片（PNG/JPG）。")
+            st.error("❌ 文件格式不被支持，请上传 PDF 或清晰图片（PNG/JPG）。")
             os.unlink(tmp_file_path)
             st.stop()
 
-        # 提取文字
+        # Debug: 打印 Textract 返回结构
+        st.write(response)
+
+        # 提取文字（统一处理）
         blocks = response.get("Blocks", [])
-        text_blocks = [b["Text"] for b in blocks if b["BlockType"] == "LINE" and "Text" in b]
+        text_blocks = [b["Text"] for b in blocks if b.get("BlockType") == "LINE" and "Text" in b]
         extracted_text = "\n".join(text_blocks)
 
         if not extracted_text.strip():
