@@ -13,7 +13,7 @@ uploaded_file = st.file_uploader("上传保险 Quote 文件（PDF、PNG、JPG）
 if uploaded_file:
     st.success(f"✅ 上传成功：{uploaded_file.name}")
 
-    # 创建 AWS Textract 客户端
+    # 创建 Textract 客户端
     textract = boto3.client(
         "textract",
         aws_access_key_id=st.secrets["AWS_ACCESS_KEY_ID"],
@@ -21,14 +21,14 @@ if uploaded_file:
         region_name=st.secrets["AWS_DEFAULT_REGION"]
     )
 
-    # 保存上传文件为临时文件
+    # 保存临时文件
     suffix = "." + uploaded_file.name.split(".")[-1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
         tmp_file.write(uploaded_file.read())
         tmp_path = tmp_file.name
 
-    with open(tmp_path, "rb") as doc:
-        try:
+    try:
+        with open(tmp_path, "rb") as doc:
             if suffix.lower() in [".png", ".jpg", ".jpeg"]:
                 response = textract.detect_document_text(Document={"Bytes": doc.read()})
             elif suffix.lower() == ".pdf":
@@ -37,37 +37,43 @@ if uploaded_file:
                     FeatureTypes=["TABLES", "FORMS"]
                 )
             else:
-                st.error("❌ 文件格式不被支持，请上传 PDF 或图片（PNG/JPG）。")
+                st.error("❌ 文件格式不支持，请上传 PDF 或 PNG/JPG。")
                 st.stop()
 
-            # 👇👇👇 加入调试信息 👇👇👇
-            st.write("🧪 Textract 原始响应：", response)
+        # 🧪 展示原始响应
+        st.write("🧪 Textract 原始响应：", response)
 
-        except Exception as e:
-            st.error(f"❌ Textract 识别失败：{str(e)}")
-            st.stop()
-
-    # 提取识别文字内容（只支持 detect_document_text）
-    if "Blocks" not in response:
-        st.error("❌ 未检测到文档内容，请上传更清晰的扫描件或图片。")
+    except Exception as e:
+        st.error(f"❌ Textract 识别失败：{str(e)}")
+        os.remove(tmp_path)
         st.stop()
 
-    extracted_text = "\n".join([
-        item["DetectedText"]
-        for item in response["Blocks"]
-        if item["BlockType"] == "LINE" and "DetectedText" in item
-    ])
+    # 提取文本，跳过没有 DetectedText 的 block
+    if "Blocks" not in response:
+        st.error("❌ 未检测到内容，请上传清晰的扫描文件或截图。")
+        st.stop()
+
+    lines = []
+    for block in response["Blocks"]:
+        if block.get("BlockType") == "LINE" and "DetectedText" in block:
+            lines.append(block["DetectedText"])
+
+    if not lines:
+        st.error("❌ 没有识别出任何文字，请尝试上传更清晰的截图或 PDF。")
+        os.remove(tmp_path)
+        st.stop()
+
+    extracted_text = "\n".join(lines)
 
     with st.expander("📃 查看识别文本"):
         st.text(extracted_text)
 
-    # 结构化提取 quote 信息
+    # 提取 quote 信息
     quote_data = parse_quote_from_text(extracted_text)
 
-    # 生成中文保单 Word 文件
+    # 生成保单
     output_path = generate_policy_doc(quote_data)
 
-    # 提供下载按钮
     with open(output_path, "rb") as f:
         st.download_button(
             label="📥 下载中文保单",
